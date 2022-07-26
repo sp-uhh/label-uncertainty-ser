@@ -20,8 +20,14 @@ Available variants,
 ```python 
 ModelVariant.model_uncertainty 
 ```
-3. Label Uncertainty (MU+LU): ```python ModelVariant.label_uncertainty ```
-4. *t*-distribution Label Uncertainty (t-LU): ```python ModelVariant.tstud_label_uncertainty ```
+2. Label Uncertainty (MU+LU): 
+```python 
+ModelVariant.label_uncertainty 
+```
+3. *t*-distribution Label Uncertainty (t-LU): 
+```python 
+ModelVariant.tstud_label_uncertainty 
+```
 
 ## Usage
 The usage of these uncertainty models is demonstrated and available in the file [unit_test.py](https://github.com/sp-uhh/label-uncertainty-ser/blob/main/unit_test.py). 
