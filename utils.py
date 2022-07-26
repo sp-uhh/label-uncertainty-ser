@@ -1,3 +1,4 @@
+from enum import Enum
 import torch
 
 from distributions import ScaleMixtureGaussian
@@ -19,3 +20,9 @@ def get_prioir_init_dist(dist="gauss"):
         return torch.distributions.Normal(0, c.PRIOR_VAR)
     elif dist == "mix-gauss":
         return ScaleMixtureGaussian(c.PI, c.SIGMA_1, c.SIGMA_2)
+
+# Model Variants
+class ModelVariant(Enum):
+    model_uncertainty = "mu"
+    label_uncertainty = "mu+lu"
+    tstud_label_uncertainty = "tlu"

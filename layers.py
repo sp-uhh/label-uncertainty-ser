@@ -8,13 +8,17 @@ import torch.nn.functional as F
 import constants as c
 import utils
 
-class ParalingExtractor(nn.Module):
+########################## End-to-End backbone model ##########################
+#############      Layers: ParalingExtractor + TemporalExtractor  #############
+# Tzirakis, P., Nguyen, A., Zafeiriou, S., & Schuller, B.W.(2021, June).Speech
+# Emotion Recognition Using Semantic Information. In ICASSP 2021.
+# Note: Hyperparameters of ParalingExtractor, TemporalExtractor taken from paper above.
+###############################################################################
 
+class ParalingExtractor(nn.Module):
     def __init__(self, dropout=0.5):
         super().__init__()
-        # padding=[floor(kernal_sizes[0]/2) CAN ALSO ensures "same" padding as in tensorflow
-        # "same" results in padding with zeros evenly to the left/right
-        # of the input such that output has the same width dimension as the input.
+
         nfilters = [50, 125, 125]
         kernal_sizes = [8, 6, 6]
         pool_sizes = [10, 5, 5]
@@ -35,11 +39,6 @@ class ParalingExtractor(nn.Module):
         self.dropout3 = nn.Dropout(dropout)
 
     def forward(self, x):
-        # Input: Raw audio, shape - [batch_size, num_segments, feature_dim]
-        #        num_segments - Number of labeled segments e.g. In RECOLA labeled at 40ms windows,
-        #                                                            so num_segments = TOTAL-RECOLA-DURATION/40ms
-        #        feature_dim  - Number of audio frames in labeled segments e.g. In RECOLA labeled at 40ms windows,
-        #                                                            so feature_dim = 40ms*audio_samplerate
         batch_size, num_segments, feature_dim = x.shape
         x = torch.reshape(x, (batch_size, num_segments*feature_dim, 1))
         x = x.permute(0, 2, 1)
@@ -48,14 +47,12 @@ class ParalingExtractor(nn.Module):
         conv2_out = self.dropout2(self.maxpool2(self.relu2(self.conv_layer2(conv1_out))))
         conv3_out = self.dropout3(self.maxpool3(self.relu3(self.conv_layer3(conv2_out))))
 
-        # RESHAPE back to [batch_size, num_segments, feature_dim]
         paraling_out = conv3_out.permute(0, 2, 1)
         paraling_out = torch.reshape(paraling_out, (batch_size, num_segments, -1))
 
         return paraling_out
 
 class TemporalExtractor(nn.Module):
-
     def __init__(self, ninp=320, nhidden=256, nlstm=2, dropout=0.5):
         super().__init__()
         self.stacked_lstm = nn.LSTM(ninp, nhidden, nlstm, batch_first=True, dropout=dropout)
@@ -64,10 +61,17 @@ class TemporalExtractor(nn.Module):
         temporal_out, (hidden, cell) = self.stacked_lstm(x)
         return temporal_out
 
-class BayesMLP(nn.Module):
 
-    def __init__(self, ninp=256, nout=2, bbb_nsegments=300, post_mu_init=(-.1, .1), post_rho_init=(-3, -2)):
-        # post_init - array of size 2, with lower limit @ 0 and upper @ 1
+
+########################## End-to-End backbone model ##########################
+#############      Layers: BayesMLP (Uncertainty layer)           #############
+# Bayesian based uncertainty model -
+# Blundell, C., Cornebise, J., Kavukcuoglu, K., & Wierstra, D. (2015, June).
+# Weight uncertainty in neural network.In International Conference on Machine Learning PMLR.
+###############################################################################
+class BayesMLP(nn.Module):
+    # Uncertainty layer
+    def __init__(self, ninp=256, nout=2, bbb_nsegments=300, post_mu_init=(-.1, .1), post_rho_init=(-4, -3)):
         super().__init__()
 
         self.ninp = ninp
@@ -99,13 +103,11 @@ class BayesMLP(nn.Module):
         batch_size, num_segments, feature_dim = x.shape
         x = torch.reshape(x, (batch_size * num_segments, feature_dim))
 
-        # Batch Norming before Applying bayesian MLP
+        # Batch Forming before Applying bayesian MLP [To Sample new weights at every bbb_nsegments.]
         # Following Loop:
-        #    1. Forward passes each time-step sample at a time (In contrast to full sample)
-        #    2. Achieves modeling uncertainty at each time-step
-        #    3. At each time-step is expensive.
-        #    4. Need to choose between -> each segment (300*40 ms, 12 secs), each sample (extreme), each time-step 40ms
-        #    5. At what granularity do we need uncertainty. How long is uncertainty constant??
+        #    1. Forward passes at each time-step is expensive.
+        #    2. Need to choose between -> each segment (300*40 ms, 12 secs), each sample (extreme), each time-step 40ms
+        #    3. At what granularity do we need uncertainty. How long is uncertainty constant??
         # Control uncertainty granularity with different bbb_nsegments
         split_x = torch.split(x, self.bbb_nsegments, dim=0)
         out = torch.zeros(len(split_x), split_x[0].shape[0], self.nout)
@@ -114,9 +116,7 @@ class BayesMLP(nn.Module):
             temp_x = self.relu1(self.hidden1(seg, isTraining, isSampling, isCalcLogProba))
             temp_x = self.relu2(self.hidden2(temp_x, isTraining, isSampling, isCalcLogProba))
             temp_x = self.relu3(self.hidden3(temp_x, isTraining, isSampling, isCalcLogProba))
-            
             temp_x = self.out(temp_x, isTraining, isSampling, isCalcLogProba)
-        
             out[i] = temp_x
         return out
 
@@ -128,12 +128,12 @@ class BayesianLinear(nn.Module):
         self.out_features = out_features
         # Weight parameters
         self.weight_mu = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(post_mu_init[0], post_mu_init[1]))
-        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(post_rho_init[0], post_rho_init[1])) # -3, -2 (5_) || -4, -3 (2_)
+        self.weight_rho = nn.Parameter(torch.Tensor(out_features, in_features).uniform_(post_rho_init[0], post_rho_init[1])) 
         self.weight = Gaussian(self.weight_mu, self.weight_rho)
 
         # Bias parameters
         self.bias_mu = nn.Parameter(torch.Tensor(out_features).uniform_(post_mu_init[0], post_mu_init[1]))
-        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(post_rho_init[0], post_rho_init[1])) # -3, -2 # -3, -2 (5_) || -4, -3 (2_)
+        self.bias_rho = nn.Parameter(torch.Tensor(out_features).uniform_(post_rho_init[0], post_rho_init[1]))
         self.bias = Gaussian(self.bias_mu, self.bias_rho)
         
         # Prior distributions

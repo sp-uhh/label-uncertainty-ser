@@ -2,6 +2,7 @@ from torch.distributions import Normal, studentT
 import torch
 
 from kl_divergence_loss import kl_dist_dist
+from utils import ModelVariant
 
 def CCC(data1, data2):
     mean1 = torch.mean(data1)
@@ -35,12 +36,13 @@ def calcKLdivBBBnSegments(out, gt, agg, annot_dist):
 
     return agg(arousal_kl), agg(valence_kl)
 
-def calcUncertaintyLoss(out_mean, out_all, y_mean, y_all, log_post, log_prior, out_meanw, loss_function):
+def calcUncertaintyLoss(out_mean, out_all, y_mean, y_all, log_post, log_prior, out_meanw, model_variant):
 
     # Reshape y_mean to [samples, arousal/valence]
-    batch_size, num_segments, num_outputs = out_mean.shape
-    out_mean = torch.reshape(out_mean, (batch_size*num_segments, -1))
+    batch_size, num_segments, num_outputs, num_annot = y_all.shape
+    # out_mean = torch.reshape(out_mean, (batch_size*num_segments, -1))
     y_mean = torch.reshape(y_mean, (batch_size*num_segments, -1))
+    y_all = torch.reshape(y_all, (batch_size*num_segments, num_outputs, -1))
 
     # Lccc(m) calc
     arousal_ccc = 1 - CCC(out_mean[:, 0], y_mean[:, 0])
@@ -61,21 +63,20 @@ def calcUncertaintyLoss(out_mean, out_all, y_mean, y_all, log_post, log_prior, o
 
     #######################  FINAL LOSS Function for TRAIN based on Model used ##############################
     # log_like = -ve (Neg ELBO inverse.prop., to log_like) -> Better log_like better accuracy.
-    if loss_function == "model_uncertainty": #Case 2
-        # Aim :
-        # Minimize - Dist between log_post & log_prior (so minimize (log_post - log_prior))
-        # Minimize - loss_cc (so in '+' loss_cc)
-        # So, Minimize - loss_cc + (log_post - log_prior)
+    if model_variant == ModelVariant.model_uncertainty: #Case 2
+        print("........ Calculating Model Uncertainty Loss (MU).............")
         arousal_loss = arousal_ccc + log_post - log_prior
         valence_loss = valence_ccc + log_post - log_prior
 
         loss = loss_ccc + log_post - log_prior
-    elif loss_function == "label_uncertainty": #Case 5 
+    elif model_variant == ModelVariant.label_uncertainty: #Case 5 
+        print("........ Calculating Model + Label Uncertainty Loss (MU+LU).............")
         arousal_loss = log_post - log_prior + arousal_ccc + arousal_kl_gauss 
         valence_loss = log_post - log_prior + valence_ccc + valence_kl_gauss 
 
         loss = (log_post - log_prior) + loss_ccc + ((arousal_kl_gauss+valence_kl_gauss)/2) 
-    elif loss_function == "tstud_label_uncertainty":
+    elif model_variant == ModelVariant.tstud_label_uncertainty:
+        print("........ Calculating t-distribtuion Label Uncertainty Loss (t-LU).............")
         arousal_loss = log_post - log_prior + arousal_ccc + arousal_kl_stud
         valence_loss = log_post - log_prior + valence_ccc + valence_kl_stud
         loss = (log_post - log_prior) + loss_ccc + ((arousal_kl_stud+valence_kl_stud)/2)
@@ -87,8 +88,8 @@ def calcUncertaintyLoss(out_mean, out_all, y_mean, y_all, log_post, log_prior, o
     print("Current Batch STD CCC- " + ", AVG: ", ((arousal_std_ccc+valence_std_ccc)/2).item(), ", Arousal: ", arousal_std_ccc.item(), ", Valence: ", valence_std_ccc.item())
     print("Current Batch KL- " + ", AVG: ", ((arousal_kl_gauss + valence_kl_gauss) / 2).item(), ", Arousal: ", arousal_kl_gauss.item(), ", Valence: ", valence_kl_gauss.item())
     print("Current Batch t-Student KL- " + ", AVG: ", ((arousal_kl_stud + valence_kl_stud) / 2).item(), ", Arousal: ", arousal_kl_stud.item(), ", Valence: ", valence_kl_stud.item())
-    print("Current Batch LOSS- " + loss_function + ", AVG: ", loss.item(), ", Arousal: ", arousal_loss.item(), ", Valence: ", valence_loss.item())
-    print()
+    print("Current Batch LOSS- " + model_variant.value + ", AVG: ", loss.item(), ", Arousal: ", arousal_loss.item(), ", Valence: ", valence_loss.item())
+    print("#"*100)
 
     # RETURSN LOSS TO MINIMIZE e.g. 1-CCC
     return loss, arousal_loss, valence_loss, arousal_ccc, valence_ccc, arousal_kl_gauss, valence_kl_gauss, arousal_std_ccc, valence_std_ccc, arousal_kl_stud, valence_kl_stud, arousal_meanw_ccc, valence_meanw_ccc 

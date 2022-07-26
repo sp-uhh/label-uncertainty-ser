@@ -4,7 +4,6 @@ import math
 import os
 
 class Gaussian(object):
-    # Reuse sampling code at Forward pass - Same as v1 forward pass
     def __init__(self, mu, rho):
         super().__init__()
         self.mu = mu
