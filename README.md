@@ -9,7 +9,7 @@ and
 Navin Raj Prabhu, Nale Lehmann-Willenbrock, Timo Gerkmann, **"Label Uncertainty Modeling and Prediction for Speech Emotion Recognition using t-Distributions"**, Affective Computing and Intelligent Interaction (ACII), Nara, Japan, Oct. 2022. [[arxiv]](https://arxiv.org/abs/2207.12135)
 
 ## Model Variants
-Three variants of label uncertainty models, for SER, introduced by the above papers, is available in this repository.
+Three variants of model and label uncertainty models for SER, introduced by the above papers, is available in this repository.
 ### Model Uncertainty and Label Uncertainty models
 ![alt text](https://github.com/sp-uhh/label-uncertainty-ser/blob/main/images/SpeechEmotionBNN.png?raw=true)
 ### *t*-distribution Label Uncertainty model
