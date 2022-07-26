@@ -16,9 +16,12 @@ Three variants of label uncertainty models, for SER, introduced by the above pap
 ![alt text](https://github.com/sp-uhh/label-uncertainty-ser/blob/main/images/t-distBNN.png?raw=true)
 
 Available variants,
-1. Model Uncertainty (MU): ```python ModelVariant.model_uncertainty ```
-2. Label Uncertainty (MU+LU): ```python ModelVariant.label_uncertainty ```
-3. *t*-distribution Label Uncertainty (t-LU): ```python ModelVariant.tstud_label_uncertainty ```
+1. Model Uncertainty (MU): 
+```python 
+ModelVariant.model_uncertainty 
+```
+3. Label Uncertainty (MU+LU): ```python ModelVariant.label_uncertainty ```
+4. *t*-distribution Label Uncertainty (t-LU): ```python ModelVariant.tstud_label_uncertainty ```
 
 ## Usage
 The usage of these uncertainty models is demonstrated and available in the file [unit_test.py](https://github.com/sp-uhh/label-uncertainty-ser/blob/main/unit_test.py). 
