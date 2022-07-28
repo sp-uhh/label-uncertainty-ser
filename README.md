@@ -11,17 +11,17 @@ Navin Raj Prabhu, Nale Lehmann-Willenbrock, Timo Gerkmann, **"Label Uncertainty 
 ## Model Variants
 Three variants of model and label uncertainty models for SER, introduced by the above papers, is available in this repository.
 ### Model Uncertainty and Label Uncertainty models
-1. Model Uncertainty (MU): 
+####Model Uncertainty (MU): 
 ```python 
 ModelVariant.model_uncertainty 
 ```
-2. Label Uncertainty (MU+LU): 
+####Label Uncertainty (MU+LU): 
 ```python 
 ModelVariant.label_uncertainty 
 ```
 ![alt text](https://github.com/sp-uhh/label-uncertainty-ser/blob/main/images/SpeechEmotionBNN.png?raw=true)
 ### *t*-distribution Label Uncertainty model
-3. *t*-distribution Label Uncertainty (t-LU): 
+####*t*-distribution Label Uncertainty (t-LU): 
 ```python 
 ModelVariant.tstud_label_uncertainty 
 ```
